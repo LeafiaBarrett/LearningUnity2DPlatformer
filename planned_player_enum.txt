@@ -1,0 +1,50 @@
+public bool grounded = false;
+public int mercyCounter = 0;
+public int hurtCounter = 0;
+public int health = 100;
+public bool isAlive = true; //a redundant check, because alive/dead state is important
+
+public enum PlayerStateGrounded
+{
+	Idle,
+	Run,
+	Slip, //sliding down a slope after losing footing - cannot stand up
+	Downed, //either knocked down or post-slip
+	StandUp, //standing up from Downed state
+	HardLanding //recovery frames from falling a large distance or using Stomp
+}
+public enum PlayerStateAerial
+{
+	No,
+	Jump, //upwards
+	Fall, //downwards
+	Stomp, //crouch in Jump or Fall to do a downward stomp
+	Knockback //sent flying in some context, not necessarily damage related
+}
+public enum PlayerStateCrouch
+{
+	No,
+	Crouch, //Run and Crouch produces crouch walking
+	SlideKick //press crouch during run to slide, transitions to Crouch on end
+}
+public enum PlayerStateWall
+{
+	No,
+	WallSlide, //pressed against wall and not rising, crouch to release wall
+	LedgeGrab, //hanging onto a ledge, caused by falling while your upper body is in range of a corner between ground and wall
+	LedgeClimb, //climbing onto the top of a ledge
+	LedgeHang //dropping down onto a ledge with crouch walking
+}
+public enum PlayerStateHurt
+{
+	No,
+	HurtEnemy,
+	HurtTerrain //hurt by damaging ground, i.e. spikes
+}
+public enum PlayerStateDead
+{
+	No,
+	DeadDmg, //health <= 0
+	DeadPit, //fell down a pit
+	DeadOOB //got stuck out of bounds somehow
+}

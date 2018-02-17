@@ -8,7 +8,7 @@ namespace UnityStandardAssets._2D
     {
         private PlatformerCharacter2D m_Character;
         private bool m_Jump;
-		private bool m_Jump_Hold;
+		private bool m_JumpHold;
 
 
         private void Awake()
@@ -25,9 +25,9 @@ namespace UnityStandardAssets._2D
                 m_Jump = Input.GetButtonDown("Jump");
             }
 
-			if (!m_Jump_Hold)
+			if (!m_JumpHold)
 			{
-				m_Jump_Hold = Input.GetButton("Jump");
+				m_JumpHold = Input.GetButton("Jump");
 			}
         }
 
@@ -38,9 +38,9 @@ namespace UnityStandardAssets._2D
             bool crouch = Input.GetKey(KeyCode.LeftControl);
             float h = Input.GetAxis("Horizontal");
             // Pass all parameters to the character control script.
-			m_Character.Move(h, crouch, m_Jump, m_Jump_Hold);
+			m_Character.Move(h, crouch, m_Jump, m_JumpHold);
             m_Jump = false;
-			m_Jump_Hold = false;
+			m_JumpHold = false;
         }
     }
 }

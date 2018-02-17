@@ -39,7 +39,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1773134397714488}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 31.71, y: 12.6, z: 0}
+  m_LocalPosition: {x: 31.71, y: 12.13, z: 0}
   m_LocalScale: {x: 1.77153, y: 1.7715304, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -135,13 +135,15 @@ MonoBehaviour:
   myCeilingCollisionCenter: {x: 0, y: 0}
   myCeilingCollisionSize: {x: 0, y: 0}
   capsuleBottom: {x: 0, y: 0}
+  crouchCheckPosition: {x: 0, y: 0}
+  crouchCheckSize: {x: 0, y: 0}
+  crouchCheckDirection: 0
   playerGravity: -9.81
   fallMultiplier: 2.5
   lowJumpMultiplier: 5
   holdJumpFallMultiplier: 2.5
-  SettingRigidbodyPhysics: 0
   SlipAngle: 50
-  LandAngle: 50
+  LandAngle: 45
 --- !u!212 &212327782710875882
 SpriteRenderer:
   m_ObjectHideFlags: 1
