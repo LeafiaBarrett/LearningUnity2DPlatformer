@@ -10,7 +10,8 @@ namespace UnityStandardAssets._2D
 		[SerializeField] private float priv_JumpSpeed = 20f;				// Amount of force added when the player jumps.
 		[Range(0, 1)] [SerializeField] private float priv_CrouchSpeed = .36f;  // Amount of maxSpeed applied to crouching movement. 1 = 100%
 		[SerializeField] private bool priv_AirControl = false;				// Whether or not a player can steer while jumping;
-		[SerializeField] private LayerMask priv_WhatIsGround;				// A mask determining what is ground to the character
+		[SerializeField] private LayerMask priv_WhatIsGround;               // A mask determining what is ground to the character
+		[SerializeField] private LayerMask priv_WhatIsCeiling;				// Determines what prevents the player from standing up
 
 		const float const_GroundedRadius = .2f; // Radius of the overlap circle to determine if grounded
 		private bool priv_Grounded;				// Whether or not the player is grounded.
@@ -51,8 +52,8 @@ namespace UnityStandardAssets._2D
 		public float noJumpWallAngle = 100f;
 		public float wallAngle = 80f;
 		public float slipAngle = 60f;
-		public float steepAngle = 40f;
-		public float stopSlipAngle = 20f; //if player slips, they can't resume standing above this angle
+		public float steepAngle = 30f;
+		public float speedUpAngle = 15f; //if the slope is more than this, the player speeds up when running downhill
 
 		//player state enums
 		public enum PlayerStateGrounded
@@ -193,15 +194,16 @@ namespace UnityStandardAssets._2D
 				priv_Grounded = true;
 				stateAerial = PlayerStateAerial.No;
 				avgNormAngle = Mathf.Atan2(quickTotalNormals.y / (float)quickTotal, quickTotalNormals.x / (float)quickTotal) - Mathf.PI / 2f;
-				//myWallFollow = (myWallFollow > 0.02 ? myWallFollow : 0f);
-				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad))
+				myWallFollow = (myWallFollow > 0.02 ? myWallFollow : 0f);
+				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad) && myVelocity.y > 0)
 				{
-					if(myVelocity.y > 0)
-						myMaxSpeed = myOriginalMaxSpeed/2 + (myOriginalMaxSpeed * (1 - Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg))/2);
-					else
-						myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (1 - Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg)) / 4);
+					myMaxSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, avgNormAngle * Mathf.Rad2Deg)) / 2f);
 				}
-				Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100) / 100 + ", " + myMaxSpeed + ", " + Mathf.Round(Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg) * 100) / 100 + ", " + Mathf.Round(quickAvgNormal.y * 100) / 100);
+				if (quickAvgNormal.y > -Mathf.Cos(speedUpAngle * Mathf.Deg2Rad) && myVelocity.y < 0)
+				{
+					myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(speedUpAngle, slipAngle, avgNormAngle * Mathf.Rad2Deg)) / 3f);
+				}
+				Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + myMaxSpeed + ", " + Mathf.Round(Mathf.InverseLerp(40f, 60f, avgNormAngle * Mathf.Rad2Deg) * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
 			}
 
 			priv_Anim.SetBool("Ground", priv_Grounded);
@@ -247,7 +249,7 @@ namespace UnityStandardAssets._2D
 				crouchCheckSize,
 				crouchCheckDirection,
 				0f,
-				priv_WhatIsGround
+				priv_WhatIsCeiling
 			))
 			{
 				crouch = true;
@@ -335,9 +337,6 @@ namespace UnityStandardAssets._2D
 				jumpBufferFrames = 0;
 				priv_Grounded = false;
 				priv_Anim.SetBool("Ground", false);
-				// Set the player's vertical speed to 0 before applying the jump force
-				// Prevents jumps from having a pitiful height when done during the grace period
-				// Also fixes a bug where jumping on the same frame as landing caused the same kind of pathetic jump height
 				myVelocity = new Vector2(myVelocity.x, priv_JumpSpeed);
 			}
 
@@ -378,8 +377,11 @@ namespace UnityStandardAssets._2D
 				}
 
 				Vector2 quickAverageNormal = (quickTotalNormal / (float)quickNormalCount).normalized;
-				if (quickAverageNormal.y > Mathf.Cos((slipAngle - 5) * Mathf.Deg2Rad))
+				if (quickAverageNormal.y > Mathf.Cos(slipAngle * Mathf.Deg2Rad))
+				{
 					priv_Grounded = true;
+					airborneFrames = 0;
+				}
 			}
 		}
 

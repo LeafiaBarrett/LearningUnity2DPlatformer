@@ -22,7 +22,7 @@ GameObject:
   - component: {fileID: 61208046505207874}
   - component: {fileID: 251969813318149768}
   - component: {fileID: 212648844813594830}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: PassThroughBlock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
