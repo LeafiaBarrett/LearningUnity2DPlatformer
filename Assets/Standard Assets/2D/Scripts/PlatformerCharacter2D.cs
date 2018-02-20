@@ -6,7 +6,7 @@ namespace UnityStandardAssets._2D
 {
 	public class PlatformerCharacter2D : MonoBehaviour
 	{
-		[SerializeField] private float priv_MaxSpeed = 10f;					// The fastest the player can travel in the x axis.
+		[SerializeField] private float myMaxSpeed = 10f;					// The fastest the player can travel.
 		[SerializeField] private float priv_JumpSpeed = 20f;				// Amount of force added when the player jumps.
 		[Range(0, 1)] [SerializeField] private float priv_CrouchSpeed = .36f;  // Amount of maxSpeed applied to crouching movement. 1 = 100%
 		[SerializeField] private bool priv_AirControl = false;				// Whether or not a player can steer while jumping;
@@ -44,6 +44,7 @@ namespace UnityStandardAssets._2D
 
 		private Vector2 myVelocity;
 		private float myWallFollow = 0f;
+		private float myOriginalMaxSpeed;
 
 		//angles used to separate collisions into normal, steep, too steep, walljump wall, no-walljump wall, and ceiling
 		public float ceilingAngle = 135f;
@@ -72,9 +73,9 @@ namespace UnityStandardAssets._2D
 			Crouch //Run and Crouch produces crouch walking
 		}
 
-		public PlayerStateGrounded stateGrounded;
-		public PlayerStateAerial stateAerial;
-		public PlayerStateCrouch stateCrouch;
+		private PlayerStateGrounded stateGrounded;
+		private PlayerStateAerial stateAerial;
+		private PlayerStateCrouch stateCrouch;
 
 		public Vector2 GetSetVelocity
 		{
@@ -100,6 +101,23 @@ namespace UnityStandardAssets._2D
 			}
 		}
 
+		public PlayerStateCrouch SetStateCrouch
+		{
+			set
+			{
+				switch (value)
+				{
+					case PlayerStateCrouch.No:
+						priv_Anim.SetBool("Crouch", false);
+						break;
+					case PlayerStateCrouch.Crouch:
+						priv_Anim.SetBool("Crouch", true);
+						break;
+				}
+				stateCrouch = value;
+			}
+		}
+
 		private void Awake()
 		{
 			myVelocity = Vector2.zero;
@@ -119,6 +137,7 @@ namespace UnityStandardAssets._2D
 			stateGrounded = PlayerStateGrounded.Idle;
 			stateAerial = PlayerStateAerial.No;
 			stateCrouch = PlayerStateCrouch.No;
+			myOriginalMaxSpeed = myMaxSpeed;
 		}
 
 		private void FixedUpdate()
@@ -128,33 +147,39 @@ namespace UnityStandardAssets._2D
 				quickCapsule.offset.x * Mathf.Abs(transform.lossyScale.x) + transform.position.x,
 				quickCapsule.offset.y * transform.lossyScale.y + transform.position.y,
 				transform.position.z); //Whim: Forgot to remove Transform Point here. This caused the center to be far off into the distance
+			Vector2 quickNormal = Vector2.zero;
 			Vector2 quickTotalNormals = Vector2.zero;
+			Vector2 quickAvgNormal = Vector2.zero;
 			int quickTotal = 0;
 			rayHits = new List<RaycastHit2D>();
 
 			//Whim: A parameter to find the shortest distance from a wall
 			myWallFollow = Mathf.Infinity;
 
-			if (priv_Grounded) foreach (RaycastHit2D repHit in Physics2D.CapsuleCastAll(
-					(Vector2)capsuleBottom, //origin
-					new Vector2(quickCapsule.size.x * Mathf.Abs(transform.lossyScale.x), quickCapsule.size.y * transform.lossyScale.y), //size
-					quickCapsule.direction, //capsuleDirection
-					0f, //angle (it may be 90)
-					Vector2.down, //raycast direction
-					0.5f, //Raycast distance. A very small value. You can check distance later anyway
-					Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))  //Collision mask
-				)
-			)
+			if (priv_Grounded)
 			{
-				Vector2 quickNormal = -repHit.normal; //Whim: Turns out the normal given by the cast is correct.
-				if (quickNormal.y > -Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
-					continue;
+				myMaxSpeed = myOriginalMaxSpeed;
+				foreach (RaycastHit2D repHit in Physics2D.CapsuleCastAll(
+					  (Vector2)capsuleBottom, //origin
+					  new Vector2(quickCapsule.size.x * Mathf.Abs(transform.lossyScale.x), quickCapsule.size.y * transform.lossyScale.y), //size
+					  quickCapsule.direction, //capsuleDirection
+					  0f, //angle (it may be 90)
+					  Vector2.down, //raycast direction
+					  0.5f, //Raycast distance. A very small value. You can check distance later anyway
+					  Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))  //Collision mask
+					)
+				)
+				{
+					quickNormal = -repHit.normal; //Whim: Turns out the normal given by the cast is correct.
+					if (quickNormal.y > -Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
+						continue;
 
-				if (repHit.distance < myWallFollow)
-					myWallFollow = repHit.distance;
-				rayHits.Add(repHit);
-				quickTotalNormals += repHit.normal;
-				quickTotal++;
+					if (repHit.distance < myWallFollow)
+						myWallFollow = repHit.distance;
+					rayHits.Add(repHit);
+					quickTotalNormals += repHit.normal;
+					quickTotal++;
+				}
 			}
 
 			if (rayHits.Count == 0)
@@ -164,10 +189,19 @@ namespace UnityStandardAssets._2D
 			}
 			else
 			{
+				quickAvgNormal = quickTotalNormals / quickTotal;
 				priv_Grounded = true;
 				stateAerial = PlayerStateAerial.No;
 				avgNormAngle = Mathf.Atan2(quickTotalNormals.y / (float)quickTotal, quickTotalNormals.x / (float)quickTotal) - Mathf.PI / 2f;
-				myWallFollow = (myWallFollow > 0.015 ? myWallFollow : 0f);
+				//myWallFollow = (myWallFollow > 0.02 ? myWallFollow : 0f);
+				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad))
+				{
+					if(myVelocity.y > 0)
+						myMaxSpeed = myOriginalMaxSpeed/2 + (myOriginalMaxSpeed * (1 - Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg))/2);
+					else
+						myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (1 - Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg)) / 4);
+				}
+				Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100) / 100 + ", " + myMaxSpeed + ", " + Mathf.Round(Mathf.InverseLerp(40, 60, avgNormAngle * Mathf.Rad2Deg) * 100) / 100 + ", " + Mathf.Round(quickAvgNormal.y * 100) / 100);
 			}
 
 			priv_Anim.SetBool("Ground", priv_Grounded);
@@ -230,9 +264,9 @@ namespace UnityStandardAssets._2D
 			// Set whether or not the character is crouching in the animator
 			priv_Anim.SetBool("Crouch", crouch);
 			if (crouch)
-				stateCrouch = PlayerStateCrouch.Crouch;
+				SetStateCrouch = PlayerStateCrouch.Crouch;
 			else
-				stateCrouch = PlayerStateCrouch.No;
+				SetStateCrouch = PlayerStateCrouch.No;
 
 			// Reduce the speed if crouching by the crouchSpeed multiplier 
 			if (stateCrouch == PlayerStateCrouch.Crouch)
@@ -250,8 +284,8 @@ namespace UnityStandardAssets._2D
 				if (priv_Grounded)
 				{
 					myVelocity = new Vector2(
-						move * priv_MaxSpeed * Mathf.Cos(avgNormAngle), 
-						move * priv_MaxSpeed * Mathf.Sin(avgNormAngle));
+						move * myMaxSpeed * Mathf.Cos(avgNormAngle), 
+						move * myMaxSpeed * Mathf.Sin(avgNormAngle));
 					if (myVelocity.x != 0)
 						stateGrounded = PlayerStateGrounded.Run;
 					else
@@ -259,7 +293,7 @@ namespace UnityStandardAssets._2D
 				}
 				else
 				{
-					myVelocity = new Vector2(move * priv_MaxSpeed, myVelocity.y);
+					myVelocity = new Vector2(move * myMaxSpeed, myVelocity.y);
 					if (myVelocity.y >= 0)
 						stateAerial = PlayerStateAerial.Jump;
 					else
@@ -310,7 +344,6 @@ namespace UnityStandardAssets._2D
 			//Whim: How we set the player's move is dependant on the physics check
 			priv_Rigidbody2D.velocity = myVelocity;
 			transform.position += new Vector3(0f, -myWallFollow, 0f);
-			Debug.Log(myWallFollow);
 		}
 
 
@@ -345,7 +378,7 @@ namespace UnityStandardAssets._2D
 				}
 
 				Vector2 quickAverageNormal = (quickTotalNormal / (float)quickNormalCount).normalized;
-				if (quickAverageNormal.y > Mathf.Cos((slipAngle - 5f) * Mathf.Deg2Rad))
+				if (quickAverageNormal.y > Mathf.Cos((slipAngle - 5) * Mathf.Deg2Rad))
 					priv_Grounded = true;
 			}
 		}
