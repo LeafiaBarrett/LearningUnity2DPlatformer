@@ -102,6 +102,12 @@ namespace UnityStandardAssets._2D
 			}
 		}
 
+		//check facing direction, which is tied to player scale
+		bool FacingLeft
+		{
+			get { return (transform.localScale.x < 0); }
+		}
+
 		public PlayerStateCrouch SetStateCrouch
 		{
 			set
@@ -185,6 +191,10 @@ namespace UnityStandardAssets._2D
 
 			if (rayHits.Count == 0)
 			{
+				if (priv_Grounded == true)
+				{
+					myVelocity = new Vector2(myVelocity.x, 0f);
+				}
 				priv_Grounded = false;
 				myWallFollow = 0f;
 			}
@@ -194,17 +204,18 @@ namespace UnityStandardAssets._2D
 				priv_Grounded = true;
 				stateAerial = PlayerStateAerial.No;
 				avgNormAngle = Mathf.Atan2(quickTotalNormals.y / (float)quickTotal, quickTotalNormals.x / (float)quickTotal) - Mathf.PI / 2f;
-				myWallFollow = (myWallFollow > 0.02 ? myWallFollow : 0f);
+				myWallFollow = (myWallFollow > 0.015 ? myWallFollow : 0f);
 				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad) && myVelocity.y > 0)
 				{
-					myMaxSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, avgNormAngle * Mathf.Rad2Deg)) / 2f);
+					myMaxSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 2f);
 				}
-				if (quickAvgNormal.y > -Mathf.Cos(speedUpAngle * Mathf.Deg2Rad) && myVelocity.y < 0)
+				if (quickAvgNormal.y >= -Mathf.Cos(speedUpAngle * Mathf.Deg2Rad) && myVelocity.y < 0)
 				{
-					myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(speedUpAngle, slipAngle, avgNormAngle * Mathf.Rad2Deg)) / 3f);
+					myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (Mathf.InverseLerp(speedUpAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 3f);
 				}
-				Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + myMaxSpeed + ", " + Mathf.Round(Mathf.InverseLerp(40f, 60f, avgNormAngle * Mathf.Rad2Deg) * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
+				//Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + Mathf.Round(myMaxSpeed * 100f) / 100f + ", " + Mathf.Round(Mathf.InverseLerp(40f, 60f, avgNormAngle * Mathf.Rad2Deg) * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
 			}
+			Debug.Log(avgNormAngle);
 
 			priv_Anim.SetBool("Ground", priv_Grounded);
 			// This tracks how long the character's been in the air
