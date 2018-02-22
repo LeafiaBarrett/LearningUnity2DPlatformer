@@ -166,16 +166,15 @@ namespace UnityStandardAssets._2D
 			//Set the normals from a check flat in size
 			if (priv_Grounded)
 			{
-				myVelocity = new Vector2(myVelocity.x, 0f);
 				foreach (RaycastHit2D repHit in
 				Physics2D.RaycastAll(
 					(Vector2)capsuleBottom,  //Origin. Place the check from the center of the character
 					Vector2.down,  //Direction, down of course
-					0.3f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad)) + quickCapsule.size.y / 2f * transform.lossyScale.y, //The distance has the speed accounted for, and the gap for when on a slope
+					0.3f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad) * 3f) + quickCapsule.size.y / 2f * transform.lossyScale.y, //The distance has the speed accounted for, and the gap for when on a slope
 					Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))) //The mask
 				)
 				{
-					if (repHit.normal.y < Mathf.Cos(slipAngle * Mathf.Deg2Rad))
+					if (repHit.normal.y < Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance - quickCapsule.size.y / 2f * transform.lossyScale.y <= -0.1f)
 						continue;
 
 					quickTotalNormals += repHit.normal;
@@ -190,13 +189,13 @@ namespace UnityStandardAssets._2D
 						quickCapsule.direction, //capsuleDirection
 						0f, //angle (it may be 90)
 						Vector2.down, //raycast direction
-						0.2f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad)), //Raycast distance.                             
+						0.2f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad) * 3f), //Raycast distance.                             
 						Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))  //Collision mask
 						)
 					)
 				{
-					Debug.Log(repHit.collider.gameObject.name);
-					if (repHit.normal.y < -Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
+					//Debug.Log(repHit.collider.gameObject.name);
+					if (repHit.normal.y < Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
 						continue;
 
 					if (repHit.distance - 0.01f < myWallFollow)
@@ -204,7 +203,7 @@ namespace UnityStandardAssets._2D
 					rayHits.Add(repHit);
 				}
 			}
-			Debug.Log(rayHits.Count);
+			//Debug.Log(rayHits.Count);
 			if (rayHits.Count == 0)
 			{
 				priv_Grounded = false;
@@ -213,9 +212,10 @@ namespace UnityStandardAssets._2D
 			}
 			else
 			{
-				quickAvgNormal = quickTotalNormals / quickTotal;
 				priv_Grounded = true;
 				stateAerial = PlayerStateAerial.No;
+				float slowDownSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 2f);
+				float speedUpSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (Mathf.InverseLerp(speedUpAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 3f);
 				if (quickTotal > 0)
 				{
 					quickAvgNormal = quickTotalNormals / (float)quickTotal;
@@ -228,15 +228,14 @@ namespace UnityStandardAssets._2D
 				myWallFollow = ((myWallFollow > 0.03 && quickTotal > 0) ? myWallFollow : 0f);
 				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad) && myVelocity.y > 0)
 				{
-					myMaxSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 2f);
+					myMaxSpeed = slowDownSpeed;
 				}
 				if (quickAvgNormal.y >= -Mathf.Cos(speedUpAngle * Mathf.Deg2Rad) && myVelocity.y < 0)
 				{
-					myMaxSpeed = myOriginalMaxSpeed + (myOriginalMaxSpeed * (Mathf.InverseLerp(speedUpAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 3f);
+					myMaxSpeed = speedUpSpeed;
 				}
-				//Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + Mathf.Round(myMaxSpeed * 100f) / 100f + ", " + Mathf.Round(Mathf.InverseLerp(40f, 60f, avgNormAngle * Mathf.Rad2Deg) * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
 			}
-
+			Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + Mathf.Round(myMaxSpeed * 100f) / 100f + ", " + Mathf.Round(avgNormAngle * Mathf.Rad2Deg * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
 			priv_Anim.SetBool("Ground", priv_Grounded);
 			// This tracks how long the character's been in the air
 			// There's a threshold for this frame counter during which the player can still jump

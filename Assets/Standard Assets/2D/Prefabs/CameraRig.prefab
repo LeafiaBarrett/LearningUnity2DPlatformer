@@ -20,7 +20,6 @@ GameObject:
   m_Component:
   - component: {fileID: 4688476259255828}
   - component: {fileID: 54306363645528198}
-  - component: {fileID: 114388284174612048}
   - component: {fileID: 114578241416764350}
   m_Layer: 0
   m_Name: CameraRig
@@ -169,23 +168,6 @@ Behaviour:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1747693496424082}
   m_Enabled: 1
---- !u!114 &114388284174612048
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1287084412151348}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 94b04ec3bda6b7747aa53936ef3b0ae2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  clipMoveTime: 0.05
-  returnTime: 0.4
-  sphereCastRadius: 0.1
-  visualiseInEditor: 1
-  closestDistance: 0.5
-  dontClipTag: Player
 --- !u!114 &114578241416764350
 MonoBehaviour:
   m_ObjectHideFlags: 1
