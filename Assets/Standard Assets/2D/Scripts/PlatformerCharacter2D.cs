@@ -147,7 +147,7 @@ namespace UnityStandardAssets._2D
 			myOriginalMaxSpeed = myMaxSpeed;
 		}
 
-		private void FixedUpdate()
+		private void CollisionChecks()
 		{
 			//We now only set the object to grounded by collision. This works more reliably
 			capsuleBottom = new Vector3(
@@ -163,48 +163,69 @@ namespace UnityStandardAssets._2D
 			//Whim: A parameter to find the shortest distance from a wall
 			myWallFollow = Mathf.Infinity;
 
+			//Set the normals from a check flat in size
 			if (priv_Grounded)
 			{
-				myMaxSpeed = myOriginalMaxSpeed;
-				foreach (RaycastHit2D repHit in Physics2D.CapsuleCastAll(
-					  (Vector2)capsuleBottom, //origin
-					  new Vector2(quickCapsule.size.x * Mathf.Abs(transform.lossyScale.x), quickCapsule.size.y * transform.lossyScale.y), //size
-					  quickCapsule.direction, //capsuleDirection
-					  0f, //angle (it may be 90)
-					  Vector2.down, //raycast direction
-					  0.5f, //Raycast distance. A very small value. You can check distance later anyway
-					  Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))  //Collision mask
-					)
+				myVelocity = new Vector2(myVelocity.x, 0f);
+				foreach (RaycastHit2D repHit in
+				Physics2D.RaycastAll(
+					(Vector2)capsuleBottom,  //Origin. Place the check from the center of the character
+					Vector2.down,  //Direction, down of course
+					0.3f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad)) + quickCapsule.size.y / 2f * transform.lossyScale.y, //The distance has the speed accounted for, and the gap for when on a slope
+					Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))) //The mask
 				)
 				{
-					quickNormal = -repHit.normal; //Whim: Turns out the normal given by the cast is correct.
-					if (quickNormal.y > -Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
+					if (repHit.normal.y < Mathf.Cos(slipAngle * Mathf.Deg2Rad))
 						continue;
 
-					if (repHit.distance < myWallFollow)
-						myWallFollow = repHit.distance;
-					rayHits.Add(repHit);
 					quickTotalNormals += repHit.normal;
 					quickTotal++;
 				}
-			}
 
+				//Do this check to accurately see if you're standing on a platform, and to get a good value for myFollow
+				foreach (RaycastHit2D repHit in
+					Physics2D.CapsuleCastAll(
+						(Vector2)capsuleBottom, //origin
+						new Vector2(quickCapsule.size.x * Mathf.Abs(transform.lossyScale.x), quickCapsule.size.y * transform.lossyScale.y), //size
+						quickCapsule.direction, //capsuleDirection
+						0f, //angle (it may be 90)
+						Vector2.down, //raycast direction
+						0.2f + Mathf.Abs(myVelocity.x * Time.deltaTime / Mathf.Tan(slipAngle * Mathf.Deg2Rad)), //Raycast distance.                             
+						Physics2D.GetLayerCollisionMask(LayerMask.NameToLayer("PlayerLayer"))  //Collision mask
+						)
+					)
+				{
+					Debug.Log(repHit.collider.gameObject.name);
+					if (repHit.normal.y < -Mathf.Cos(slipAngle * Mathf.Deg2Rad) || repHit.distance <= -0.1f)
+						continue;
+
+					if (repHit.distance - 0.01f < myWallFollow)
+						myWallFollow = repHit.distance - 0.01f;
+					rayHits.Add(repHit);
+				}
+			}
+			Debug.Log(rayHits.Count);
 			if (rayHits.Count == 0)
 			{
-				if (priv_Grounded == true)
-				{
-					myVelocity = new Vector2(myVelocity.x, 0f);
-				}
 				priv_Grounded = false;
 				myWallFollow = 0f;
+				avgNormAngle = 0f;
 			}
 			else
 			{
 				quickAvgNormal = quickTotalNormals / quickTotal;
 				priv_Grounded = true;
 				stateAerial = PlayerStateAerial.No;
-				avgNormAngle = Mathf.Atan2(quickTotalNormals.y / (float)quickTotal, quickTotalNormals.x / (float)quickTotal) - Mathf.PI / 2f;
-				myWallFollow = (myWallFollow > 0.015 ? myWallFollow : 0f);
+				if (quickTotal > 0)
+				{
+					quickAvgNormal = quickTotalNormals / (float)quickTotal;
+					avgNormAngle = Mathf.Atan2(quickTotalNormals.y / (float)quickTotal, quickTotalNormals.x / (float)quickTotal) - Mathf.PI / 2f;
+				}
+				else
+				{
+					myWallFollow = 0;
+				}
+				myWallFollow = ((myWallFollow > 0.03 && quickTotal > 0) ? myWallFollow : 0f);
 				if (quickAvgNormal.y < Mathf.Cos(steepAngle * Mathf.Deg2Rad) && myVelocity.y > 0)
 				{
 					myMaxSpeed = myOriginalMaxSpeed / 2f + (myOriginalMaxSpeed * (1f - Mathf.InverseLerp(steepAngle, slipAngle, Mathf.Abs(avgNormAngle) * Mathf.Rad2Deg)) / 2f);
@@ -215,7 +236,6 @@ namespace UnityStandardAssets._2D
 				}
 				//Debug.Log("" + Mathf.Round(myVelocity.magnitude * 100f) / 100f + ", " + Mathf.Round(myMaxSpeed * 100f) / 100f + ", " + Mathf.Round(Mathf.InverseLerp(40f, 60f, avgNormAngle * Mathf.Rad2Deg) * 100f) / 100f + ", " + Mathf.Round(quickAvgNormal.y * 100f) / 100f);
 			}
-			Debug.Log(avgNormAngle);
 
 			priv_Anim.SetBool("Ground", priv_Grounded);
 			// This tracks how long the character's been in the air
@@ -255,6 +275,7 @@ namespace UnityStandardAssets._2D
 
 		public void Move(float move, bool crouch, bool jump, bool jumpHold)
 		{
+			CollisionChecks();
 			if (priv_Grounded && Physics2D.OverlapCapsule(
 				GetCrouchCheckPos,
 				crouchCheckSize,
